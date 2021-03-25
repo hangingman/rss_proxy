@@ -33,7 +33,8 @@ def main(args: argparse.Namespace):
 
 def load_config(path: Optional[str] = None) -> dict:
     if path is None:
-        path = os.path.join(os.getcwd(), 'config.yml')
+        src_dir: str = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(src_dir, 'config.yml')
     with open(path, 'r', encoding='UTF-8') as yml:
         config = yaml.load(yml, Loader=yaml.FullLoader)
     return config
