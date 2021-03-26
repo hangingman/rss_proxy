@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import argparse
-import os
 import json
+import os
+import urllib
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.request import build_opener, install_opener, ProxyHandler
 
-import yaml
-import requests
-import urllib
 import feedparser
+import requests
+import yaml
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta, timezone
-
 from dateutil.parser import parse
 from dict_digger import dig
 
@@ -54,7 +53,7 @@ def post_to_slack(target_url: str,
                   proxy: ProxyHandler,
                   webhook_url: str, target_date_from: datetime, target_date_to: datetime):
 
-    attachments = feed_of_the_day(target_url, proxy, target_date_from, target_date_to)
+    attachments = attachment(target_url, proxy, target_date_from, target_date_to)
     dt_fmt = '%Y年%m月%d日 %H:%M:%S'
     if not attachments:
         text = f"【{target_date_from.strftime(dt_fmt)}〜{target_date_to.strftime(dt_fmt)}に掲示された記事はありません】"
@@ -70,7 +69,7 @@ def post_to_slack(target_url: str,
     )
 
 
-def feed_of_the_day(target_url: str, proxy: ProxyHandler, target_date_from: datetime, target_date_to: datetime):
+def attachment(target_url: str, proxy: ProxyHandler, target_date_from: datetime, target_date_to: datetime):
     feed = feedparser.parse(target_url, handlers=[proxy])
     opener = build_opener(proxy)
     install_opener(opener)
@@ -88,9 +87,24 @@ def feed_of_the_day(target_url: str, proxy: ProxyHandler, target_date_from: date
             attachments += [{
                 'title': entry['title'],
                 'title_link': entry['link'],
-                # 'text': text_of_article(entry['link'])
             }]
+            # detailに入っている記事もパースする
+            attachments += detail_to_articles(dig(entry, 'summary_detail', 'value'))
+
+    # リンク先に重複があれば削除しておく。
+    # リンク先のみのリストを作っておき、すでにattachmentsに追加していれば返却時のattachmentsには追加しない。
+    title_link_list = [elem['title_link'] for elem in attachments]
+    attachments = [elem for i, elem in enumerate(attachments) if elem['title_link'] not in title_link_list[0:i]]
     return attachments
+
+
+def detail_to_articles(html: str, ignore_words=None):
+    """ RSSの<description/> tagから記事をパースする, その際に無視したい記事はignore_wordsで指定できる """
+    if ignore_words is None:
+        ignore_words = ['Google ニュースですべての記事を見る']
+    soup = BeautifulSoup(html, 'html.parser')
+    return [{'title': atag.text, 'title_link': atag.attrs['href']}
+            for atag in soup.find_all(name="a") if atag.text not in ignore_words]
 
 
 def text_of_article(url):
