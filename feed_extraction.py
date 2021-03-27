@@ -53,23 +53,22 @@ def post_to_slack(target_url: str,
                   proxy: ProxyHandler,
                   webhook_url: str, target_date_from: datetime, target_date_to: datetime):
 
-    attachments = attachment(target_url, proxy, target_date_from, target_date_to)
+    attachments = make_attachments(target_url, proxy, target_date_from, target_date_to)
     dt_fmt = '%Y年%m月%d日 %H:%M:%S'
-    if not attachments:
-        text = f"【{target_date_from.strftime(dt_fmt)}〜{target_date_to.strftime(dt_fmt)}に掲示された記事はありません】"
-    else:
-        text = f"【{target_date_from.strftime(dt_fmt)}〜{target_date_to.strftime(dt_fmt)}に掲示された記事一覧】"
-    requests.post(
-        webhook_url,
-        data=json.dumps({
-            'text': text,
-            'attachments': attachments,
-            'link_names': 1
-        })
-    )
+    text = f"【{target_date_from.strftime(dt_fmt)}〜{target_date_to.strftime(dt_fmt)}】"
+    if attachments:
+        for a in attachments:
+            requests.post(
+                webhook_url,
+                data=json.dumps({
+                    'text': text,
+                    'attachments': [a],
+                    'link_names': 1
+                })
+            )
 
 
-def attachment(target_url: str, proxy: ProxyHandler, target_date_from: datetime, target_date_to: datetime):
+def make_attachments(target_url: str, proxy: ProxyHandler, target_date_from: datetime, target_date_to: datetime):
     feed = feedparser.parse(target_url, handlers=[proxy])
     opener = build_opener(proxy)
     install_opener(opener)
