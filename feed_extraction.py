@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import time
 import urllib
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -20,6 +21,9 @@ from requests import Response
 # RSS投稿の管理用db(ソースと同じディレクトリに設置する)
 db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rss_database.db')
 db = SqliteDatabase(db_path)
+
+# 連続でSlackに投稿しないために待ち時間を設定する
+SLACK_POST_WAIT = 3
 
 
 class BaseModel(Model):
@@ -81,16 +85,16 @@ def post_to_slack(target_url: str,
     for a in attachments:
         # slackに投稿済みであればpostしない
         if not Rss.select().where(Rss.url == a['title_link']):
+            # デフォルトで3秒まつ
+            time.sleep(SLACK_POST_WAIT)
+            payload = {'text': text, 'attachments': [a], 'link_names': 1}
+            print(f"slack post: {payload}")
             response: Response = requests.post(
-                webhook_url,
-                data=json.dumps({
-                    'text': text,
-                    'attachments': [a],
-                    'link_names': 1
-                })
+                webhook_url, data=json.dumps(payload)
             )
             if response.status_code == 200:
                 Rss(title=a['title'], url=a['title_link']).save()
+            print(f"response: {response.status_code}")
 
 
 def make_attachments(target_url: str, proxy: ProxyHandler, target_date_from: datetime, target_date_to: datetime):
