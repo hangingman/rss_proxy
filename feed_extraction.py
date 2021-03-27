@@ -117,7 +117,7 @@ def make_attachments(target_url: str, proxy: ProxyHandler, target_date_from: dat
                 'title_link': entry['link'],
             }]
             # detailに入っている記事もパースする
-            attachments += detail_to_articles(dig(entry, 'summary_detail', 'value'))
+            # attachments += detail_to_articles(dig(entry, 'summary_detail', 'value'))
 
     # リンク先に重複があれば削除しておく。
     # リンク先のみのリストを作っておき、すでにattachmentsに追加していれば返却時のattachmentsには追加しない。
