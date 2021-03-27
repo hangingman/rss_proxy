@@ -4,3 +4,4 @@ bs4==0.0.1
 requests==2.25.1
 dict_digger==0.2.1
 python-dateutil==2.8.1
+peewee==3.14.4

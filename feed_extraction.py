@@ -14,6 +14,24 @@ import yaml
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from dict_digger import dig
+from peewee import SqliteDatabase, Model, TextField, DateTimeField
+from requests import Response
+
+# RSS投稿の管理用db(ソースと同じディレクトリに設置する)
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rss_database.db')
+db = SqliteDatabase(db_path)
+
+
+class BaseModel(Model):
+    class Meta:
+        database = db
+
+
+class Rss(BaseModel):
+    """ Slackに投稿済みのURLをここで管理する """
+    url = TextField(unique=True)
+    title = TextField()
+    created_date = DateTimeField(default=datetime.now)
 
 
 def main(args: argparse.Namespace):
@@ -21,6 +39,9 @@ def main(args: argparse.Namespace):
     target_url: str = config['target_url']
     webhook_url: str = config['webhook_url']
     proxy: ProxyHandler = proxy_auth(config)
+
+    db.connect()
+    db.create_tables([Rss], safe=True)  # デフォルトで create table if not exists が入っている
 
     # 日付指定(from)の設定
     target_date_from = yesterday()
@@ -52,13 +73,15 @@ def proxy_auth(config: dict) -> ProxyHandler:
 def post_to_slack(target_url: str,
                   proxy: ProxyHandler,
                   webhook_url: str, target_date_from: datetime, target_date_to: datetime):
+    """ SlackにRSSの内容をpostする """
 
     attachments = make_attachments(target_url, proxy, target_date_from, target_date_to)
     dt_fmt = '%Y年%m月%d日 %H:%M:%S'
     text = f"【{target_date_from.strftime(dt_fmt)}〜{target_date_to.strftime(dt_fmt)}】"
-    if attachments:
-        for a in attachments:
-            requests.post(
+    for a in attachments:
+        # slackに投稿済みであればpostしない
+        if not Rss.select().where(Rss.url == a['title_link']):
+            response: Response = requests.post(
                 webhook_url,
                 data=json.dumps({
                     'text': text,
@@ -66,6 +89,8 @@ def post_to_slack(target_url: str,
                     'link_names': 1
                 })
             )
+            if response.status_code == 200:
+                Rss(title=a['title'], url=a['title_link']).save()
 
 
 def make_attachments(target_url: str, proxy: ProxyHandler, target_date_from: datetime, target_date_to: datetime):
@@ -78,7 +103,7 @@ def make_attachments(target_url: str, proxy: ProxyHandler, target_date_from: dat
     for entry in entries:
         rss_date_str = entry['published']
         # 'Wed, 24 Mar 2021 22:33:04 GMT'
-        rss_date: datetime = parse(rss_date_str).\
+        rss_date: datetime = parse(rss_date_str). \
             astimezone(timezone(timedelta(hours=9), 'JST'))
 
         if target_date_from <= rss_date <= target_date_to:
@@ -133,7 +158,8 @@ if __name__ == '__main__':
     )
     tz = timezone(timedelta(hours=9), 'JST')
     parser.add_argument('--from-date', required=False, default=None, help='RSS取得したい対象日時(from) yyyy/MM/dd HH:mm:ss')
-    parser.add_argument('--to-date', required=False, default=datetime.now(tz=tz), help='RSS取得したい対象日時(to) yyyy/MM/dd HH:mm:ss')
+    parser.add_argument('--to-date', required=False, default=datetime.now(tz=tz),
+                        help='RSS取得したい対象日時(to) yyyy/MM/dd HH:mm:ss')
     parsed_args = parser.parse_args()
     if parsed_args.from_date:
         parsed_args.from_date = parse(parsed_args.from_date.__str__()).astimezone(tz)
