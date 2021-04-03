@@ -6,6 +6,10 @@ port:
 
 # RSS feed
 target_url:
+ignore_words:
+  - "Google ニュースですべての記事を見る"
+ignore_domains:
+  - www.google.com
 
 # Incoming WebHooks
 webhook_url:
