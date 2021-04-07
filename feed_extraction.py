@@ -94,6 +94,15 @@ def post_to_slack(target_url: str,
     exec_request_slack(ignore_domains, ignore_words, posts, fallback_text, webhook_url)
 
 
+def title_contains_ignore_words(title: str, ignore_words: list) -> bool:
+    return any((word in title) for word in ignore_words)
+
+
+def url_contains_ignore_domains(title_link: str, ignore_domains: list) -> bool:
+    url = get_redirected_url(title_link)
+    return any((urlparse(url).netloc == domain) for domain in ignore_domains)
+
+
 def exec_request_slack(ignore_domains: list,
                        ignore_words: list,
                        posts: List[dict],
@@ -104,11 +113,10 @@ def exec_request_slack(ignore_domains: list,
     """
     for post in posts:
         # 無視対象単語を含むのであればskip
-        if any((word in post['title']) for word in ignore_words):
+        if title_contains_ignore_words(post['title'], ignore_words):
             continue
         # 無視対象ドメインを含むのであればskip
-        url = get_redirected_url(post['title_link'])
-        if any((urlparse(url).netloc == domain) for domain in ignore_domains):
+        if url_contains_ignore_domains(post['title_link'], ignore_domains):
             continue
         # slackに投稿済みであればpostしない
         if not Rss.select().where(Rss.url == post['title_link']):
