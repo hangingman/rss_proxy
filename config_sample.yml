@@ -5,7 +5,8 @@ password:
 port:
 
 # RSS feed
-target_url:
+target_urls:
+  - https://news.google.com/rss?hl=ja&gl=JP&ceid=JP%3Aja&oc=11
 ignore_words:
   - "Google ニュースですべての記事を見る"
 ignore_domains:

@@ -42,7 +42,7 @@ class Rss(BaseModel):
 
 def main(args: argparse.Namespace):
     config: dict = load_config()
-    target_url: str = config['target_url']
+    target_urls: List[str] = config['target_urls']
     webhook_url: str = config['webhook_url']
     proxy: ProxyHandler = proxy_auth(config)
     ignore_words: list = config['ignore_words']
@@ -56,7 +56,7 @@ def main(args: argparse.Namespace):
     if args.from_date:
         target_date_from = args.from_date
 
-    post_to_slack(target_url, proxy, webhook_url, target_date_from, args.to_date, ignore_words, ignore_domains)
+    post_to_slack(target_urls, proxy, webhook_url, target_date_from, args.to_date, ignore_words, ignore_domains)
 
 
 def load_config(path: Optional[str] = None) -> dict:
@@ -79,7 +79,7 @@ def proxy_auth(config: dict) -> ProxyHandler:
     return proxy
 
 
-def post_to_slack(target_url: str,
+def post_to_slack(target_urls: List[str],
                   proxy: ProxyHandler,
                   webhook_url: str,
                   target_date_from: datetime,
@@ -88,7 +88,7 @@ def post_to_slack(target_url: str,
                   ignore_domains: list):
     """ SlackにRSSの内容をpostする """
 
-    posts: List[dict] = make_posts(target_url, proxy, target_date_from, target_date_to)
+    posts: List[dict] = make_posts(target_urls, proxy, target_date_from, target_date_to)
     dt_fmt = '%Y年%m月%d日 %H:%M:%S'
     fallback_text: str = f"【{target_date_from.strftime(dt_fmt)}〜{target_date_to.strftime(dt_fmt)}】"
     exec_request_slack(ignore_domains, ignore_words, posts, fallback_text, webhook_url)
@@ -132,16 +132,22 @@ def exec_request_slack(ignore_domains: list,
             print(f"response: {response.status_code}")
 
 
-def make_posts(target_url: str,
+def make_posts(target_urls: List[str],
                proxy: ProxyHandler,
                target_date_from: datetime,
                target_date_to: datetime) -> List[dict]:
-    feed = feedparser.parse(target_url, handlers=[proxy])
+
+    # 複数RSSのURLを処理する
+    feeds = [feedparser.parse(url, handlers=[proxy]) for url in target_urls]
+
     opener = build_opener(proxy)
     install_opener(opener)
     posts = []
+    entries = []
 
-    entries = [entry for entry in feed['entries'] if dig(entry, 'published')]
+    for feed in feeds:
+        entries.extend([entry for entry in feed['entries'] if dig(entry, 'published')])
+
     for entry in entries:
         rss_date_str = entry['published']
         # 'Wed, 24 Mar 2021 22:33:04 GMT'
