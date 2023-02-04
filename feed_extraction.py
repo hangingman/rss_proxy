@@ -153,11 +153,13 @@ def make_posts(target_urls: List[str],
         # 'Wed, 24 Mar 2021 22:33:04 GMT'
         rss_date: datetime = parse(rss_date_str).astimezone(timezone(timedelta(hours=9), 'JST'))
 
+        # RSSのpublishedの日付が対象日付であれば取得
         if target_date_from <= rss_date <= target_date_to:
-            # RSSのpublishedの日付が対象日付であれば
+            # 短縮リンクは解除して直接リンクに変換
+            title_link: str = get_redirected_url(entry['link'])
             posts += [{
                 'title': entry['title'],
-                'title_link': entry['link'],
+                'title_link': title_link,
             }]
 
     # リンク先に重複があれば削除しておく。
@@ -188,8 +190,11 @@ def yesterday(tz: str = 'JST') -> datetime:
 def get_redirected_url(short_url: str) -> str:
     """ 短縮URLが返す真のURLを取得する """
     try:
-        response = requests.head(short_url, allow_redirects=False)
-        return response.headers['Location'] if 'Location' in response.headers else short_url
+        response = requests.head(short_url, allow_redirects=True)
+        if not response.url:
+            return short_url
+
+        return  response.url
     except:
         formatted_lines: List[str] = traceback.format_exc().splitlines()
         print(formatted_lines)
