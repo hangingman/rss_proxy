@@ -1,12 +1,15 @@
 import os
+import pathlib
 
 from feed_extraction import exec_request_slack, load_config, title_contains_ignore_words, url_contains_ignore_domains
 
 
 def test_load_config():
-    src_dir: str = os.path.dirname(os.path.abspath(__file__))
-    path: str = os.path.join(src_dir, 'test_config.yml')
+    cwd: pathlib.Path = pathlib.Path(os.path.abspath(__file__))
+    tests_dir: str = os.path.dirname(cwd)
+    path: str = os.path.join(tests_dir, 'test_config.yml')
     config: dict = load_config(path)
+
     assert ["Google ニュースですべての記事を見る"] == config['ignore_words']
     assert [
       "f1-gate.com",
