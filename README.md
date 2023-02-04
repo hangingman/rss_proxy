@@ -7,6 +7,7 @@
 2. スクリプト実行時の前日に公開された記事のタイトル・リンク・本文をSlackに投稿 (Incoming WebHooksを利用)
 
 ## つかいかた
+
 0. `git clone`する。
 1. `config_sample.yml`を複製して`config.yml`とする。
 2. `config.yml`にプロキシサーバーの認証情報、RSS取得先、Incoming WebHooksのURLを入力
@@ -16,3 +17,10 @@
 6. `python feed_extraction.py`
 
 ※プロキシサーバーでパスワード認証がない場合や、プロキシを通す必要がそもそもない場合は関数`proxy_auth`をいじったり、関数`feed_of_the_day`で`feed = feedparser.parse(target_url)`としたりすればよいはず。
+
+## 開発
+
+```shell
+$ pip install -r requirements-dev.txt
+$ pytest
+```

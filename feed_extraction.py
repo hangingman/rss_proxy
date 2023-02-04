@@ -120,7 +120,7 @@ def exec_request_slack(ignore_domains: list,
             continue
         # slackに投稿済みであればpostしない
         if not Rss.select().where(Rss.url == post['title_link']):
-            # デフォルトで0秒待つ
+            # デフォルトで3秒待つ
             time.sleep(SLACK_POST_WAIT)
             payload = {'text': fallback_text, 'attachments': [post], 'link_names': 1}
             print(f"slack post: {payload}")
